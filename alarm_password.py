@@ -1,8 +1,19 @@
-#!/usr/bin/python
+#!/usr/bin/env python
+
+"""
+alarm_password.py
+--------------------------------------------------------------------------
+
+Revision History
+v 1.0 First version containing only import of keypad and calls for 
+	getting key pressed and validating simple password
+
+--------------------------------------------------------------------------
+"""
 
 from time import sleep
 from sys import exit
-import keypad as alarm_kp
+import alarm_keypad as alarm_kp
 
 ## Initialize the keypad class.
 kp = alarm_kp.keypad()

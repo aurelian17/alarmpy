@@ -6,43 +6,48 @@ import RPi.GPIO as GPIO
 import time
 
 class alarm_input():
-    #all alarm inputs will be configured by default as GPIO.IN
-    self.GPIO_Type = GPIO.IN
-
-    #alarm_input class constructor
-    def __init__(self, IONumber, IOPull, IOEdge, IOTimeout):
-	print "-==alarm_input constructor==-"
-	print "GPIO %s"%IONumber
-	print "GPIO PullUpDown %s"%IOPull
-	print "GPIO Edge %s"%IOEdge
-	print "GPIO Timeout %s"%IOTimeout
-
-	GPIO.setmode(GPIO.BCM)
-
-	# TODO checks on parameters if needed
-
-	# CLASS MEMBERS
-	self.GPIO_Number = IONumber		# 23
-	self.GPIO_Pull = IOPull			# GPIO.PUD_UP
-	self.GPIO_Edge = IOEdge			# GPIO.FALLING
-	self.GPIO_Timeout = IOTimeout		# 100
-	#GPIO set as input, pulled up to avoid false detection.
-	GPIO.setup(self.GPIO_Number, self.GPIO_Type, pull_up_down=self.GPIO_Pull)
-
-	#when the falling edge is detected on port 23, no matter what happens in the
-	#program, the function event_detected will be run; bouncetime=100 sets a time
-	#of 100ms of a second when a second event will be ignored.
-	GPIO.add_event_detect(self.GPIO_Number, self.GPIO_Edge, callback=event_detected, bouncetime=self.GPIO_Timeout)
+	# all alarm inputs will be configured by default as GPIO.IN
+	self.GPIO_Type = GPIO.IN
 
 
-    #define threaded callback function that will run in another thread
-    #when the events are detected
-    def event_detected(self, channel):
-	print "event detected on GPIO %s"%self.GPIO_Number
+	def __init__(self, IONumber, IOPull, IOEdge, IOTimeout):
+		"alarm_input class constructor"
+		print "-==alarm_input constructor==-"
+		print "GPIO %s"%IONumber
+		print "GPIO PullUpDown %s"%IOPull
+		print "GPIO Edge %s"%IOEdge
+		print "GPIO Timeout %s"%IOTimeout
+		GPIO.setmode(GPIO.BCM)
 
-    #clean up the GPIO on normal exit
-    def deinit()
-	GPIO.cleanup()
+		# TODO checks on parameters if needed
+
+		# alarm_input class members
+		self.GPIO_Number = IONumber		# 23
+		self.GPIO_Pull = IOPull			# GPIO.PUD_UP
+		self.GPIO_Edge = IOEdge			# GPIO.FALLING
+		self.GPIO_Timeout = IOTimeout		# 100
+		#GPIO set as input, pulled up to avoid false detection.
+		GPIO.setup(self.GPIO_Number, self.GPIO_Type, pull_up_down=self.GPIO_Pull)
+
+		#when the falling edge is detected on port 23, no matter what happens in the
+		#program, the function event_detected will be run; bouncetime=100 sets a time
+		#of 100ms of a second when a second event will be ignored.
+		GPIO.add_event_detect(self.GPIO_Number, self.GPIO_Edge, callback=event_detected, bouncetime=self.GPIO_Timeout)
+		return
+
+
+	def event_detected(self, channel):
+		"define threaded callback function that will run in another thread when the events are detected"
+		print "-==alarm_input event detected(ch %s, GPIO %s)==-"% (channel, self.GPIO_Number)
+		print "event detected on GPIO %s"%self.GPIO_Number
+		return
+
+
+	def deinit()
+		"clean up the GPIO on normal exit"
+		print "-==alarm_input deinit()==-"
+		GPIO.cleanup()
+		return
 
 	#The following lines kept as an example
 	#GPIO.setup(23, GPIO.IN, pull_up_down=GPIO.PUD_UP)

@@ -6,6 +6,7 @@ alarm_keypad.py
 
 Revision History
 v 1.0 First version containing the implementation for a 4x3 numeric keypad
+v 1.1 Added class destructor used also for cleanup of GPIO's
 
 -------------------------------------------------------------------------------
 """
@@ -28,12 +29,17 @@ class alarm_keypad():
 		"alarm_keypad class constructor"
 		print "-==alarm_keypad constructor==-"
 		GPIO.setmode(GPIO.BCM)
+		return
 
-
+	def __del__(self):
+		"alarm_keypad class destructor"
+		print "-==alarm_keypad destructor==-"
+		GPIO.cleanup()
+		return
 
 	def getKey(self):
 		"alarm_keypad getKey method that returns the keypad key pressed"
-		print "-==alarm_keypad getKey()==-"
+		#print "-==alarm_keypad getKey()==-"
 		# Set all columns as output low
 		for j in range(len(self.COLUMN)):
 			GPIO.setup(self.COLUMN[j], GPIO.OUT)
@@ -83,16 +89,12 @@ class alarm_keypad():
 
 	def exit(self):
 		"alarm_keypad method used for reinitializing all GPIO ports used"
-		print "-==alarm_keypad exit()==-"
+		#print "-==alarm_keypad exit()==-"
 		# Reinitialize all rows and columns as input at exit
 		for i in range(len(self.ROW)):
 			GPIO.setup(self.ROW[i], GPIO.IN, pull_up_down=GPIO.PUD_UP) 
 		for j in range(len(self.COLUMN)):
 			GPIO.setup(self.COLUMN[j], GPIO.IN, pull_up_down=GPIO.PUD_UP)
-
-	def deinit(self):
-		"alarm_keyboard method used for deinitialize the GPIO's"
-		GPIO.cleanup()
 
 def main():
 	"main function"
@@ -107,7 +109,6 @@ def main():
 
 	# Print the result
 	print digit
-	kp.deinit()
 
 if __name__ == '__main__':
 	main()

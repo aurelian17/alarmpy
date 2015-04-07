@@ -11,6 +11,8 @@ v 1.1 Added alarm_password class and modified a little the
 	implementation
 v 1.2 Added implementation for reading class constants from configuration
 	file
+v 1.3 Added implementation for comparing with all passwords stored in the
+	configuration file
 
 --------------------------------------------------------------------------
 """
@@ -23,9 +25,7 @@ class alarm_password():
 
 	# alarm_password class constants
 	alarm_passwords_configuration_file = "alarm_password.cfg"
-	#attempt = "00000"
-	#passcode = "1590E"
-	#counter = 0
+	counter = 0
 
 	def __init__(self):
 		# Define alarm_password class variables
@@ -48,38 +48,56 @@ class alarm_password():
 		print "passwords length: %s"%self.passwd_len
 		print "accept character: %s"%self.accept_char
 		print "clear character: %s"%self.clear_char
-		print users
-		print passwds
-		attempt = zfill(self.passwd_len + 1)
+		print self.users
+		print self.passwds
+		attempt = zfill(self.passwd_len)
 		print "attempt: %s"%self.attempt
 
 		# Loop while waiting for a keypress
 		while True:
 			# Loop to get a pressed digit
 			digit = None
-			while digit == None:
+			ending = None
+			while digit != self.accept_char or digit != self.clear_char:
 				digit = kp.getKey()
+
+			ending = digit # to be checked if digit last value is correct
+
+			# If clear character is pressed all the history until this
+			# point should be cleared
+			if ending == self.clear_char:
+				print "Clear keypad pressed"
+				self.counter = 0
+
+			# If accept character is pressed the password should be
+			# checked in the passwods list
+			if ending == self.accept_char:
+				print "Enter keypad pressed"
+				
  
 			# Print the result
-			print "Digit Entered:       %s"%digit
+			print "Digit Entered:			%s"%digit
+			print "Ending character entered		%s"%ending
 			self.attempt = (self.attempt[1:] + str(digit))
 			print "Attempt value:       %s"%self.attempt
 
 			# Check for passcode match
-			if (self.attempt == self.passcode):
-				print "Your code was correct, goodbye."
-				exit()
-			else:
-				self.counter += 1
-				print "Entered digit count: %s"%self.counter
-				if (self.counter >= 5):
-					print "Incorrect code!"
-					sleep(3)
-					print "Try Again"
-					sleep(1)
-					self.counter = 0
+			for i in range (0, self.num_users):
+				if (self.attempt == self.passwds[i]):
+					print "Code introduced by user %s, goodbye."%self.users[i]
+					exit()
+
+			self.counter += 1
+			print "Entered digit count: %s"%self.counter
+			if (self.counter >= self.paswd_len):
+				print "Incorrect code!"
+				sleep(3)
+				print "Try Again"
+				sleep(1)
+				self.counter = 0
 
 			sleep(0.5)
+		return
 
 	def writePasswordsConfigFile(self, filename):
 		"writing the configuration file for alarm passwords with ConfigParser"

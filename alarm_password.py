@@ -14,6 +14,8 @@ v 1.2 Added implementation for reading class constants from configuration
 v 1.3 Added implementation for comparing with all passwords stored in the
 	configuration file
 v 1.4 Added logging support for alarm_password class
+v 1.5 Fixed the logging initialization; logs are sent to a specific file;
+	changed the formatting of log messages
 
 --------------------------------------------------------------------------
 """
@@ -127,8 +129,11 @@ class alarm_password():
 
 	def initDebugging(self):
 		"initialization of the debugging system"
-		logging.basicConfig(sstram=sys.stderr, level=logging.DEBUG)
-		logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+		logging.basicConfig(level=logging.DEBUG,
+				    format='%(asctime)s - %(levelname)s : %(message)s',
+				    datefmt='%d/%m/%Y %H:%M:%S %p',
+				    filename='alarm_log.log',
+				    filemode='w')
 		return
 
 	def writePasswordsConfigFile(self, filename):

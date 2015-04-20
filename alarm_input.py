@@ -14,7 +14,7 @@ v 1.2 Added logging support for alarm_input class
 
 
 import RPi.GPIO as GPIO
-import time
+import time					#for sleep
 import logging					#for logging
 import sys					#for logging
 
@@ -29,9 +29,9 @@ class alarm_input():
 		self.initDebugging()
 
 		logging.debug("-==alarm_input constructor==-")
-		logging.debug("GPIO %s", IONumber)
-		logging.debug("GPIO Edge %s", IOEdge)
-		logging.debug("GPIO Timeout %s", IOTimeout)
+		logging.debug("-==alarm_input GPIO %s", IONumber)
+		logging.debug("-==alarm_input GPIO Edge %s", IOEdge)
+		logging.debug("-==alarm_input GPIO Timeout %s", IOTimeout)
 		GPIO.setmode(GPIO.BCM)
 
 		#TODO checks on parameters if needed
@@ -42,19 +42,19 @@ class alarm_input():
 		self.GPIO_Timeout = IOTimeout		# 100
 
 		#GPIO set as input, without pull_up or pull_down configured resitors.
-		GPIO.setup(self.GPIO_Number, self.GPIO_Type)
+		GPIO.setup(int(self.GPIO_Number), self.GPIO_Type)
 
 		#when the falling/rising edge is detected on port, no matter what happens in the
 		#program, the function event_detected will be run; bouncetime sets a number of ms 
 		#of a second when a second, when event will be ignored.
-		GPIO.add_event_detect(self.GPIO_Number, self.GPIO_Edge, callback=self.event_detected, bouncetime=self.GPIO_Timeout)
+		GPIO.add_event_detect(int(self.GPIO_Number), int(self.GPIO_Edge), callback=self.event_detected, bouncetime=int(self.GPIO_Timeout))
 		return
 
 	def initDebugging(self):
 		"initialization of the debugging system"
 		logging.basicConfig(level=logging.DEBUG,
-				    format='%(asctime)s - %(levelname)s : %(message)s',
-				    datefmt='%d/%m/%Y %H:%M:%S %p',
+				    format='%(asctime)s.%(msecs).03d - %(levelname)s : %(message)s',
+				    datefmt='%d/%m/%Y %H:%M:%S',
 				    filename='alarm_log.log',
 				    filemode='w')
 		return

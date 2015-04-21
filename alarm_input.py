@@ -8,6 +8,7 @@ Revision History
 v 1.0 First version containing only implementation for reading GPIO with interrupts
 v 1.1 Added alarm_input class implementation
 v 1.2 Added logging support for alarm_input class
+v 1.3 Added alarm_input GPIO_Name field for compatibility with alarm_zone class
 
 ----------------------------------------------------------------------------------------
 """
@@ -23,23 +24,26 @@ class alarm_input():
 	# all alarm inputs will be configured by default as GPIO.IN
 	GPIO_Type = GPIO.IN
 
-	def __init__(self, IONumber, IOEdge, IOTimeout):
+	def __init__(self, IONumber, IOEdge, IOTimeout, IOName):
 		"alarm_input class constructor"
 
 		self.initDebugging()
 
 		logging.debug("-==alarm_input constructor==-")
-		logging.debug("-==alarm_input GPIO %s", IONumber)
-		logging.debug("-==alarm_input GPIO Edge %s", IOEdge)
-		logging.debug("-==alarm_input GPIO Timeout %s", IOTimeout)
+		logging.debug("-==alarm_input GPIO %s==-", IONumber)
+		logging.debug("-==alarm_input GPIO Edge %s==-", IOEdge)
+		logging.debug("-==alarm_input GPIO Timeout %s==-", IOTimeout)
+		logging.debug("-==alarm_input GPIO Name %s==-", IOName)
 		GPIO.setmode(GPIO.BCM)
 
 		#TODO checks on parameters if needed
 
 		# alarm_input class members
-		self.GPIO_Number = IONumber		# 23
-		self.GPIO_Edge = IOEdge			# GPIO.FALLING
-		self.GPIO_Timeout = IOTimeout		# 100
+		self.GPIO_Name = IOName
+		self.GPIO_Number = IONumber
+		self.GPIO_Edge = IOEdge
+		self.GPIO_Timeout = IOTimeout
+		self.GPIO_Zone = ''
 
 		#GPIO set as input, without pull_up or pull_down configured resitors.
 		GPIO.setup(int(self.GPIO_Number), self.GPIO_Type)
@@ -59,15 +63,20 @@ class alarm_input():
 				    filemode='w')
 		return
 
-	def event_detected(self, channel):
-		"define threaded callback function that will run in another thread when the events are detected"
-		logging.debug("-==alarm_input event detected GPIO %s==-", channel)
+	def setZone(self, zoneName):
+		"set zone for alarm_input"
+		logging.debug("-==alarm_input setZone (%s) ==-", zoneName)
+		self.GPIO_Zone = zoneName
 		return
 
+	def event_detected(self, channel):
+		"define threaded callback function that will run in another thread when the events are detected"
+		logging.debug("-==alarm_input event detected  Zone %s : GPIO %s - %s==-", self.GPIO_Zone, self.GPIO_Name, channel)
+		return
 
 	def __del__(self):
 		"clean up the GPIO on normal exit"
-		logging.debug("-==alarm_input deinit()==-")
+		logging.debug("-==alarm_input destructor()==-")
 		GPIO.remove_event_detect(self.GPIO_Number)
 		GPIO.cleanup()
 		return

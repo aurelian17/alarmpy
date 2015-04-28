@@ -89,9 +89,9 @@ def main():
 	"main function"
 	print "-==alarm_input main()==-"
 	# Initialize the alarm_input class
-	ai1 = alarm_input(17, GPIO.RISING, 300)
-	ai2 = alarm_input(21, GPIO.RISING, 300)
-	ai3 = alarm_input(22, GPIO.RISING, 300)
+	ai1 = alarm_input(17, GPIO.RISING, 300, "Contact 1")
+	ai2 = alarm_input(21, GPIO.RISING, 300, "Contact 2")
+	ai3 = alarm_input(22, GPIO.RISING, 300, "PIR 1")
 	while True:
 		time.sleep(1)
 	return

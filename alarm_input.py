@@ -9,6 +9,7 @@ v 1.0 First version containing only implementation for reading GPIO with interru
 v 1.1 Added alarm_input class implementation
 v 1.2 Added logging support for alarm_input class
 v 1.3 Added alarm_input GPIO_Name field for compatibility with alarm_zone class
+v 1.4 Added link with alarm_event singleton class in order to log all alarm events
 
 ----------------------------------------------------------------------------------------
 """
@@ -18,6 +19,8 @@ import RPi.GPIO as GPIO
 import time					#for sleep
 import logging					#for logging
 import sys					#for logging
+
+import alarm_event
 
 class alarm_input():
 
@@ -72,6 +75,7 @@ class alarm_input():
 	def event_detected(self, channel):
 		"define threaded callback function that will run in another thread when the events are detected"
 		logging.debug("-==alarm_input event detected  Zone %s : GPIO %s - %s==-", self.GPIO_Zone, self.GPIO_Name, channel)
+		alarm_event.alarm_event().getEventInstance().insertEvent(self.GPIO_Name, self.GPIO_Zone, channel)
 		return
 
 	def __del__(self):

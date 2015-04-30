@@ -12,6 +12,7 @@ v 1.4 Added implementation for creating alarm_input instances based
 	on the configuration file
 v 1.5 Added implementation for creating alarm_zone instances based
 	on the configuration file
+v 1.6 Added initialization of alarm_event class in constructor
 
 --------------------------------------------------------------------------------
 """
@@ -25,6 +26,7 @@ import time						#for sleep
 
 import alarm_input
 import alarm_zone
+import alarm_event
 
 class alarm_configuration():
 	# alarm_configuration class constants
@@ -46,6 +48,8 @@ class alarm_configuration():
 		"alarm_configuration class constructor"
 		self.initDebugging()
 		logging.debug("-==alarm_configuration constructor==-")
+		# initialize the alarm_event class
+		alarm_event.alarm_event().getEventInstance()
 		return
 
 

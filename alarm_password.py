@@ -20,18 +20,17 @@ v 1.5 Fixed the logging initialization; logs are sent to a specific file;
 --------------------------------------------------------------------------
 """
 
-from time import sleep
-from sys import exit
 import logging						#for logging
 import sys						#for logging
 from ConfigParser import SafeConfigParser		#for password configuration files
 import ConfigParser					#for configuration files
-import alarm_keypad as alarm_kp
+import alarm_keypad					#for alarm_keypad class
+import alarm_state					#for alarm_state class
 
 class alarm_password():
 
 	# alarm_password class constants
-	alarm_passwords_cfg_file = "alarm_password.cfg"
+	alarm_passwords_cfg_file = "alarm_passwords.cfg"
 	counter = 0
 
 	def __init__(self):
@@ -42,27 +41,34 @@ class alarm_password():
 		self.clear_char = ''
 		self.users_list = []
 		self.passwds_list = []
+		self.silent_list = []
+		self.panic_list = []
 		self.attempt = ''
 
 		# Initialize the logging support
 		self.initDebugging()
 
 		# Initialize the keypad class
-		kp = alarm_kp.alarm_keypad()
+		kp = alarm_keypad.alarm_keypad()
 
-		logging.debug("-==alarm_password constructor==-")
+		logging.debug("-==alarm_password: constructor==-")
+
+		# Write the default configuration file to disk
+		#self.writePasswordsConfigFile(self.alarm_passwords_cfg_file)
 
 		# Read the class properties from the configuration file
 		self.readPasswordsConfigFile(self.alarm_passwords_cfg_file)
 
 		# Chech the class variables values:
-		logging.debug("number of users: %s", self.num_users)
-		logging.debug("passwords length: %s", self.passwd_len)
-		logging.debug("accept character: %s", self.accept_char)
-		logging.debug("clear character: %s", self.clear_char)
+		logging.debug("-==alarm_password: number of users: %s==-", self.num_users)
+		logging.debug("-==alarm_password: passwords length: %s==-", self.passwd_len)
+		logging.debug("-==alarm_password: accept character: %s==-", self.accept_char)
+		logging.debug("-==alarm_password: clear character: %s==-", self.clear_char)
 		for i in range(0, int(self.num_users)):
-			logging.debug("User %d -> %s", i, self.users_list[i])
-			logging.debug("Pass %d -> %s", i, self.passwds_list[i])
+			logging.debug("\tUser              %d -> %s", i, self.users_list[i])
+			logging.debug("\tArm/Disarm Passwd %d -> %s", i, self.passwds_list[i])
+			logging.debug("\tSilent Passwd     %d -> %s", i, self.silent_list[i])
+			logging.debug("\tPanic Passwd      %d -> %s\n", i, self.panic_list[i])
 
 		self.attempt = self.attempt.zfill(int(self.passwd_len))
 		logging.debug("attempt: %s", self.attempt)
@@ -82,7 +88,6 @@ class alarm_password():
 			# If clear character is pressed all the history until this
 			# point should be cleared
 			if digit == self.clear_char:
-				logging.debug("Clear keypad pressed")
 				cont = 1
 				self.counter = 0
 				self.attempt = ''
@@ -93,22 +98,34 @@ class alarm_password():
 			# If accept character is pressed the password should be
 			# checked in the passwods list
 			if digit == self.accept_char:
-				logging.debug("Enter keypad pressed")
 				cont = 1
 				# Check for passcode match
 				for i in range (0, int(self.num_users)):
 					if (self.attempt == self.passwds_list[i]):
-						logging.debug("Correct passwod %s introduced by user %s.", self.attempt, self.users_list[i])
+						logging.debug("Correct ARM/DISARM password %s introduced by user %s.", self.attempt, self.users_list[i])
 						# Prepairing for the next password, resetting counter and attempt
 						self.counter = 0
 						self.attempt = ''
 						self.attempt = self.attempt.zfill(int(self.passwd_len))
-						logging.debug("ACCEPTED PASSWORD event: counter: %s, attempt: %s", self.counter, self.attempt)
+						logging.debug("ACCEPTED ARM/DISARM PASSWORD event: counter: %s, attempt: %s", self.counter, self.attempt)
+					if (self.attempt == self.silent_list[i]):
+						logging.debug("Correct SILENT password %s introduced by user %s.", self.attempt, self.users_list[i])
+						# Prepairing for the next password, resetting counter and attempt
+						self.counter = 0
+						self.attempt = ''
+						self.attempt = self.attempt.zfill(int(self.passwd_len))
+						logging.debug("ACCEPTED SILENT PASSWORD event: counter: %s, attempt: %s", self.counter, self.attempt)
+					if (self.attempt == self.panic_list[i]):
+						logging.debug("Correct PANIC password %s introduced by user %s.", self.attempt, self.users_list[i])
+						# Prepairing for the next password, resetting counter and attempt
+						self.counter = 0
+						self.attempt = ''
+						self.attempt = self.attempt.zfill(int(self.passwd_len))
+						logging.debug("ACCEPTED PANIC PASSWORD event: counter: %s, attempt: %s", self.counter, self.attempt)
 				self.counter = 0
 				self.attempt = ''
 				self.attempt = self.attempt.zfill(int(self.passwd_len))
 				logging.debug("ACCEPT event: counter: %s, attempt: %s", self.counter, self.attempt)
-
 
 			if cont != 1:
 				# Concatenate the last valid character to attempt and increment counter
@@ -124,14 +141,14 @@ class alarm_password():
 				self.attempt = self.attempt.zfill(int(self.passwd_len))
 				logging.debug("EXCEED event: counter: %s, attempt: %s", self.counter, self.attempt)
 
-			sleep(0.2)
+			time.sleep(0.2)
 		return
 
 	def initDebugging(self):
 		"initialization of the debugging system"
 		logging.basicConfig(level=logging.DEBUG,
-				    format='%(asctime)s - %(levelname)s : %(message)s',
-				    datefmt='%d/%m/%Y %H:%M:%S %p',
+				    format='%(asctime)s.%(msecs).03d - %(levelname)s : %(message)s',
+				    datefmt='%d/%m/%Y %H:%M:%S',
 				    filename='alarm_log.log',
 				    filemode='w')
 		return
@@ -142,20 +159,26 @@ class alarm_password():
 		cfgfile = open(filename,'wb')
 		try:
 			configuration = SafeConfigParser()
-			configuration.add_section('PASSWORDS')
-			configuration.set('PASSWORDS', 'USERS', '3')
-			configuration.set('PASSWORDS', 'LENGTH', '4')
-			configuration.set('PASSWORDS', 'ACCEPT', 'E')
-			configuration.set('PASSWORDS', 'CLEAR', 'C')
+			configuration.add_section('GENERAL')
+			configuration.set('GENERAL', 'USERS', '3')
+			configuration.set('GENERAL', 'LENGTH', '6')
+			configuration.set('GENERAL', 'ACCEPT', 'E')
+			configuration.set('GENERAL', 'CLEAR', 'C')
 			configuration.add_section('PASSWORD_0')
-			configuration.set('PASSWORD_0', 'USERNAME', 'User0')
-			configuration.set('PASSWORD_0', 'PASSWORD', '0000')
+			configuration.set('PASSWORD_0', 'USERNAME', 'User1')
+			configuration.set('PASSWORD_0', 'ARM/DISARM PASSWORD', '111111')
+			configuration.set('PASSWORD_0', 'SILENT PASSWORD', '999999')
+			configuration.set('PASSWORD_0', 'PANIC PASSWORD', '111112')
 			configuration.add_section('PASSWORD_1')
-			configuration.set('PASSWORD_1', 'USERNAME', 'User1')
-			configuration.set('PASSWORD_1', 'PASSWORD', '1111')
+			configuration.set('PASSWORD_1', 'USERNAME', 'User2')
+			configuration.set('PASSWORD_1', 'ARM/DISARM PASSWORD', '222222')
+			configuration.set('PASSWORD_1', 'SILENT PASSWORD', '888888')
+			configuration.set('PASSWORD_1', 'PANIC PASSWORD', '222112')
 			configuration.add_section('PASSWORD_2')
-			configuration.set('PASSWORD_2', 'USERNAME', 'User2')
-			configuration.set('PASSWORD_2', 'PASSWORD', '2222')
+			configuration.set('PASSWORD_2', 'USERNAME', 'User3')
+			configuration.set('PASSWORD_2', 'ARM/DISARM PASSWORD', '987654')
+			configuration.set('PASSWORD_2', 'SILENT PASSWORD', '456789')
+			configuration.set('PASSWORD_2', 'PANIC PASSWORD', '987112')
 			configuration.write(cfgfile)
 			cfgfile.close()
 
@@ -171,15 +194,17 @@ class alarm_password():
 		configuration = SafeConfigParser()
 		configuration.read(filename)
 
-		self.num_users = configuration.get('PASSWORDS', 'USERS')
-		self.passwd_len = configuration.get('PASSWORDS', 'LENGTH')
-		self.accept_char = configuration.get('PASSWORDS', 'ACCEPT')
-		self.clear_char = configuration.get('PASSWORDS', 'CLEAR')
+		self.num_users = configuration.get('GENERAL', 'USERS')
+		self.passwd_len = configuration.get('GENERAL', 'LENGTH')
+		self.accept_char = configuration.get('GENERAL', 'ACCEPT')
+		self.clear_char = configuration.get('GENERAL', 'CLEAR')
 		for i in range (0, int(self.num_users)):
 			self.users_list.insert(i, configuration.get('PASSWORD_' + str(i), 'USERNAME'))
-			self.passwds_list.insert(i, configuration.get('PASSWORD_' + str(i), 'PASSWORD'))
+			self.passwds_list.insert(i, configuration.get('PASSWORD_' + str(i), 'ARM/DISARM PASSWORD'))
+			self.silent_list.insert(i, configuration.get('PASSWORD_' + str(i), 'SILENT PASSWORD'))
+			self.panic_list.insert(i, configuration.get('PASSWORD_' + str(i), 'PANIC PASSWORD'))
 
-		logging.debug("-==alarm_configuration: readPasswordsConfigFile() exit")
+		logging.debug("-==alarm_configuration: readPasswordsConfigFile() exit==-")
 		return
 
 def main():
@@ -187,7 +212,10 @@ def main():
 	print "-==alarm_password main()==-"
 	# Initialize the passwords class
 	passwd = alarm_password()
-
+	return
 
 if __name__ == '__main__':
-	main()
+	try:
+		main()
+	except KeyboardInterrupt:
+		print "KeyboardInterrupt detected!"

@@ -17,27 +17,31 @@ import time						#for sleep
 import logging						#for logging
 import sys						#for logging
 import ConfigParser					#for configuration files
-import thread						#for multithreading support
 import smtplib						#for sending e-mail support
 from email.mime.text import MIMEText			#for sending e-mail support
 from email.mime.multipart import MIMEMultipart		#for sending e-mail support
+from multiprocessing import Process, Lock		#for multiprocess and mutex
 
 
 """
   http://www.mindviewinc.com/Books/Python3Patterns/Index.php
 """
-class Singleton:
+class EventSingleton:
 	def __init__(self, klass):
 		self.klass = klass
 		self.instance = None
-		return;
+		self.lock = Lock()
+		return
 
 	def __call__(self, *args, **kwds):
 		if self.instance == None:
-			self.instance = self.klass(*args, **kwds)
+			with self.lock:
+				if self.instance == None:
+					self.instance = self.klass(*args, **kwds)
 		return self.instance
 
-@Singleton
+
+@EventSingleton
 class alarm_event(object):
 	# alarm_event class constants
 	INSTANCE = None
@@ -45,9 +49,10 @@ class alarm_event(object):
 	alarm_events_filename = "alarm_events.cfg"
 
 	# database related constants
-	enableDatabase = False
+	databaseEnabled = False
 	databasePath = ''
 	databaseFilename = ''
+	databaseTable = ''
 
 	# SMTP notification related constants
 	enableSMTP = False
@@ -87,7 +92,7 @@ class alarm_event(object):
 
 	def writeEventsConfigFile(self, filename):
 		"writing the configuration file for alarm_events with ConfigParser"
-		logging.debug("-==alarm_event: writeEentsConfigFile(%s) ==-", filename)
+		logging.debug("-==alarm_event: writeEventsConfigFile(%s) ==-", filename)
 		cfgfile = open(filename, 'wb')
 		try:
 			configuration = ConfigParser.ConfigParser()
@@ -96,7 +101,8 @@ class alarm_event(object):
 			configuration.set('GENERAL', 'USE MAIL NOTIFICATION', True)
 			configuration.add_section('DATABASE')
 			configuration.set('DATABASE', 'PATH', '/home/pi/alarmpy/')
-			configuration.set('DATABASE', 'FILENAME', 'events.db')
+			configuration.set('DATABASE', 'FILENAME', 'alarmSystem.db')
+			configuration.set('DATABASE', 'TABLE', 'Events')
 			configuration.add_section('E-MAIL')
 			configuration.set('E-MAIL', 'SMTP SERVER', 'smtp.gmail.com')
 			configuration.set('E-MAIL', 'SMTP USER', 'user@gmail.com')
@@ -109,8 +115,8 @@ class alarm_event(object):
 			configuration.set('E-MAIL', 'SMTP PORT', 465)
 			configuration.add_section('NOTIFICATION RECIPIENTS')
 			configuration.set('NOTIFICATION RECIPIENTS', 'NUMBER', 2)
-			configuration.set('NOTIFICATION RECIPIENTS', 'RECIPIENT_0', 'recipient@gmail.com')
-			configuration.set('NOTIFICATION RECIPIENTS', 'RECIPIENT_1', 'recipient@yahoo.com')
+			configuration.set('NOTIFICATION RECIPIENTS', 'RECIPIENT_0', 'recipient@yahoo.com')
+			configuration.set('NOTIFICATION RECIPIENTS', 'RECIPIENT_1', 'recipient@gmail.com')
 			configuration.write(cfgfile)
 			cfgfile.close()
 
@@ -118,6 +124,7 @@ class alarm_event(object):
 			logging.error("-==alarm_event: writeEventsConfigFile(): Cannot read %s:%s ==-", filename, error)
 
 		logging.debug("-==alarm_event: writeEventsConfigFile() exit ==-")
+		return
 
 	def readEventsConfigFile(self, filename):
 		"reading the configuration file for alarm events with ConfigParser"
@@ -125,13 +132,14 @@ class alarm_event(object):
 		configuration = ConfigParser.ConfigParser()
 		configuration.read(filename)
 
-		self.enableDatabase = configuration.get('GENERAL', 'USE DATABASE')
+		self.databaseEnabled = configuration.get('GENERAL', 'USE DATABASE')
 		self.enableSMTP = configuration.get('GENERAL', 'USE MAIL NOTIFICATION')
-		logging.debug('-==alarm_event: readEventsConfigFile(): USE DATABASE %s - USE MAIL NOTIFICATION %s==-', self.enableDatabase, self.enableSMTP)
+		logging.debug('-==alarm_event: readEventsConfigFile(): USE DATABASE %s - USE MAIL NOTIFICATION %s==-', self.databaseEnabled, self.enableSMTP)
 
 		self.databasePath = configuration.get('DATABASE', 'PATH')
 		self.databaseFilename = configuration.get('DATABASE', 'FILENAME')
-		logging.debug('-==alarm_event: readEventsConfigFile(): DATABASE: Path %s - Filename %s==-', self.databasePath, self.databaseFilename)
+		self.databaseTable = configuration.get('DATABASE','TABLE')
+		logging.debug('-==alarm_event: readEventsConfigFile(): DATABASE: Path %s - Filename %s - Table %s==-', self.databasePath, self.databaseFilename, self.databaseTable)
 
 		self.serverSMTP = configuration.get('E-MAIL', 'SMTP SERVER')
 		self.userSMTP = configuration.get('E-MAIL', 'SMTP USER')
@@ -148,7 +156,7 @@ class alarm_event(object):
 			logging.debug('-==alarm_event: readEventsConfigFile(): NOTIFICATION RECIPIENT %d: %s==-', i, recipient)
 			self.recipients.append(recipient)
 
-		logging.debug("-==alarm_event: readEventConfigFile() exit==-")
+		logging.debug("-==alarm_event: readEventsConfigFile() exit==-")
 		return
 
 	def getEventInstance(cls):
@@ -161,16 +169,13 @@ class alarm_event(object):
 		"Add a new alarm_event"
 		logging.debug("-==alarm_event insertEvent: inputName: %s, inputZone: %s, inputGPIO: %s ==-", inputName, inputZone, inputGPIO)
 		if self.enableSMTP == 'True':
-			self.sendEventNotificationEmail(inputName, inputZone, inputGPIO)
-		return
+			"Send event notification e-mail to all recipients list from a separate process"
+			try:
+				process = Process(target = self.sendEventNotificationEmail, args = (inputName, inputZone, inputGPIO))
+				process.start()
+			except:
+				logging.error("-==alarm_event sendEventNotificationEmailThread: Unable to start e-mail notification thread!!!==-")
 
-	def sendEventNotificationEmailThread(self, inputName, inputZone, inputGPIO):
-		"Send event notification e-mail to all recipients list from a separate thread"
-		logging.debug("-==alarm_event sendEventNotificationEmailThread: inputName: %s, inputZone: %s, inputGPIO: %s ==-", inputName, inputZone, inputGPIO)
-		try:
-			thread.start_new_thread(sendEventNotificationEmail, (inputName, inputZone, inputGPIO))
-		except:
-			logging.error("-==alarm_event sendEventNotificationEmailThread: Unable to start thread!!!==-")
 		return
 
 	def sendEventNotificationEmail(self, inputName, inputZone, inputGPIO):
@@ -225,27 +230,47 @@ class alarm_event(object):
 def main():
 	"main function"
 	print "-==alarm_event main()==-"
-	# Initialize the alarm_input class
-	ae1 = alarm_event().getEventInstance()
-	ae2 = alarm_event().getEventInstance()
-	ae3 = alarm_event().getEventInstance()
+	# Initialize the alarm_event class
+	almev = alarm_event().getEventInstance()
 
-	ae1.insertEvent("GPIO_1", "Zone0", 17)
-	ae3.insertEvent("GPIO_3", "Zone0", 22)
-	ae2.insertEvent("GPIO_2", "Zone1", 21)
-
-	ae1.insertEvent("GPIO_1", "Zone0", 17)
-	ae2.insertEvent("GPIO_2", "Zone1", 21)
-	ae3.insertEvent("GPIO_3", "Zone0", 22)
-
-	ae2.insertEvent("GPIO_2", "Zone1", 21)
-	ae3.insertEvent("GPIO_3", "Zone0", 22)
-	ae1.insertEvent("GPIO_1", "Zone0", 17)
+	# Start 3 different precesses in order simulate alarm events in the same time
+	prcs1 = Process(target = process1, args = ('prc1', 'GPIO_1', 'Zone0', '17'))
+	prcs2 = Process(target = process2, args = ('prc2', 'GPIO_2', 'Zone1', '21'))
+	prcs3 = Process(target = process3, args = ('prc3', 'GPIO_3', 'Zone0', '22'))
+	prcs1.start()
+	prcs2.start()
+	prcs3.start()
 
 	while True:
 		time.sleep(1)
 	return
 
+def process1(processName, inputName, inputZone, inputGPIO):
+	print ("Process: %s started for: %s %s %s"% (processName, inputName, inputZone, inputGPIO))
+	ae1 = alarm_event().getEventInstance()
+	time.sleep(0.8)
+	ae1.insertEvent(inputName, inputZone, inputGPIO)
+	time.sleep(0.1)
+	ae1.insertEvent(inputName, inputZone, inputGPIO)
+	return
+
+def process2(processName, inputName, inputZone, inputGPIO):
+	print ("Process: %s started for: %s %s %s"% (processName, inputName, inputZone, inputGPIO))
+	ae2 = alarm_event().getEventInstance()
+	time.sleep(0.85)
+	ae2.insertEvent(inputName, inputZone, inputGPIO)
+	time.sleep(0.05)
+	ae2.insertEvent(inputName, inputZone, inputGPIO)
+	return
+
+def process3(processName, inputName, inputZone, inputGPIO):
+	print ("Process: %s started for: %s %s %s"% (processName, inputName, inputZone, inputGPIO))
+	ae3 = alarm_event().getEventInstance()
+	time.sleep(0.9)
+	ae3.insertEvent(inputName, inputZone, inputGPIO)
+	time.sleep(0.001)
+	ae3.insertEvent(inputName, inputZone, inputGPIO)
+	return
 
 if __name__ == '__main__':
 	try:
